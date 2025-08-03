@@ -1,14 +1,12 @@
 package com.example.PageTurners.controllers;
 
+import com.example.PageTurners.models.RefreshTokenResponse;
 import com.example.PageTurners.services.AuthService;
 import com.example.PageTurners.models.AppUser;
 import com.example.PageTurners.models.AuthRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -35,5 +33,10 @@ public class Profile {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
+    @PostMapping("/refresh-user-token")
+    public ResponseEntity<RefreshTokenResponse> refreshUserToken(@RequestBody Long userId) {
+        RefreshTokenResponse updatedUser = authService.refreshUserToken(userId);
+        return ResponseEntity.ok(updatedUser);
     }
 }

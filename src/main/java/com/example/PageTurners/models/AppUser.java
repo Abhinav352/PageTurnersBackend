@@ -22,4 +22,8 @@ import lombok.Data;
         private String timeZone;
         private Double latitude;
         private Double longitude;
+        private String accessToken;
+        private String refreshToken;
+        private Long tokenExpiry;
+
     }
