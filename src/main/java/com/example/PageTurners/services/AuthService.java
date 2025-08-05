@@ -393,4 +393,77 @@ public class AuthService {
 
         return response.getBody();
     }
+
+    public String expireUserToken(Long userId) {
+        AppUser user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        String provider = user.getProvider();
+        String accessToken = user.getAccessToken();
+        String refreshToken = user.getRefreshToken();
+
+        try {
+            if ("google".equalsIgnoreCase(provider)) {
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+                // ✅ Only revoke refresh token
+                if (refreshToken != null) {
+                    MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+                    body.add("token", refreshToken);
+
+                    restTemplate.postForEntity(
+                            "https://oauth2.googleapis.com/revoke",
+                            new HttpEntity<>(body, headers),
+                            String.class
+                    );
+                }
+            }
+             else if ("discord".equalsIgnoreCase(provider)) {
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+                // Revoke access token
+                if (accessToken != null) {
+                    MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+                    body.add("client_id", discordClientId);
+                    body.add("client_secret", discordClientSecret);
+                    body.add("token", accessToken);
+
+                    restTemplate.postForEntity(
+                            "https://discord.com/api/oauth2/token/revoke",
+                            new HttpEntity<>(body, headers),
+                            String.class
+                    );
+                }
+
+                // Revoke refresh token
+                if (refreshToken != null) {
+                    MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+                    body.add("client_id", discordClientId);
+                    body.add("client_secret", discordClientSecret);
+                    body.add("token", refreshToken);
+
+                    restTemplate.postForEntity(
+                            "https://discord.com/api/oauth2/token/revoke",
+                            new HttpEntity<>(body, headers),
+                            String.class
+                    );
+                }
+            }
+
+            // ✅ Clear tokens from DB to fully log out the user
+            user.setAccessToken(null);
+            user.setRefreshToken(null);
+            user.setTokenExpiry(null);
+            userRepository.save(user);
+
+            return "Access and refresh tokens expired successfully";
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to expire token", e);
+        }
+    }
+
+
 }

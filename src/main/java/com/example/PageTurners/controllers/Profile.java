@@ -39,4 +39,9 @@ public class Profile {
         RefreshTokenResponse updatedUser = authService.refreshUserToken(userId);
         return ResponseEntity.ok(updatedUser);
     }
+    @DeleteMapping("/expire-user-token")
+    public ResponseEntity<String> expireUserToken(@RequestBody Long userId) {
+        return ResponseEntity.ok(authService.expireUserToken(userId));
+    }
+
 }
