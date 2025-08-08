@@ -1,9 +1,6 @@
 package com.example.PageTurners.models;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.Data;
 
     @Entity
@@ -22,7 +19,10 @@ import lombok.Data;
         private String timeZone;
         private Double latitude;
         private Double longitude;
+
+        @Column(length = 2048)
         private String accessToken;
+        @Column(length = 2048)
         private String refreshToken;
         private Long tokenExpiry;
 

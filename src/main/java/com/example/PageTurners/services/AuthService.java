@@ -27,6 +27,12 @@ public class AuthService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private KeycloakAdminService keycloakAdminService;
+
+    @Autowired
+    private KeyCloakService keycloakService;
+
     private final RestTemplate restTemplate = new RestTemplate();
 
     // Discord App Credentials
@@ -53,6 +59,7 @@ public class AuthService {
         String provider = request.getAuthProvider().toLowerCase();
 
         if ("local".equals(provider)) {
+            keycloakAdminService.createUserInKeycloak(request.getUserName(), request.getPassword(), request.getProfile().getEmail());
             if (userRepository.findByUserName(request.getUserName()).isPresent()) {
                 throw new RuntimeException("Username already exists");
             }
@@ -107,7 +114,7 @@ public class AuthService {
     public AppUser login(AuthRequest request) {
         String provider = request.getAuthProvider().toLowerCase();
 
-        if ("local".equals(provider)) {
+        if ("local".equalsIgnoreCase(request.getAuthProvider())) {
             AppUser user = userRepository.findByUserName(request.getUserName())
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -115,7 +122,14 @@ public class AuthService {
                 throw new RuntimeException("Invalid credentials");
             }
 
-            return user;
+            Map<String, Object> tokenData = keycloakService.generateToken(request.getUserName(), request.getPassword());
+            user.setAccessToken((String) tokenData.get("access_token"));
+            user.setRefreshToken((String) tokenData.get("refresh_token"));
+            Integer expiresIn = (Integer) tokenData.get("expires_in");
+            if (expiresIn != null) {
+                user.setTokenExpiry(System.currentTimeMillis() / 1000 + expiresIn);
+            }
+            return userRepository.save(user);
         }
 
         // OAuth login
@@ -348,6 +362,7 @@ public class AuthService {
         return switch (provider.toLowerCase()) {
             case "google" -> refreshGoogleToken(refreshToken);
             case "discord" -> refreshDiscordToken(refreshToken);
+            case "local" -> keycloakService.refreshToken(refreshToken);
             default -> throw new RuntimeException("Unsupported provider: " + provider);
         };
     }
@@ -403,7 +418,10 @@ public class AuthService {
         String refreshToken = user.getRefreshToken();
 
         try {
-            if ("google".equalsIgnoreCase(provider)) {
+            if( "local".equalsIgnoreCase(provider)) {
+                expireLocalToken(accessToken);
+            }
+            else if ("google".equalsIgnoreCase(provider)) {
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
@@ -463,6 +481,10 @@ public class AuthService {
         } catch (Exception e) {
             throw new RuntimeException("Failed to expire token", e);
         }
+    }
+
+    public void expireLocalToken(String accessToken) {
+        keycloakService.revokeToken(accessToken);
     }
 
 
